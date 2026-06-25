@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Begone Captions",
+  "version": "1.0",
+  "description": "Hides post text on X/Twitter video posts behind a 10-click gate.",
+  "content_scripts": [
+    {
+      "matches": ["*://x.com/*", "*://twitter.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "begone-captions@example.com"
+    }
+  },
+  "icons": {
+    "48": "icon.svg",
+    "96": "icon.svg"
+  }
+}
