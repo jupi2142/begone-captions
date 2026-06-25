@@ -4,10 +4,12 @@
   const postStates = new WeakMap();
   let activePost = null;
   let revealedPost = null;
+  let currentMode = "gate";
+  let requiredClicks = 10;
+  let modeLoaded = false;
 
   function init() {
-    document.querySelectorAll("article").forEach(processPost);
-    new MutationObserver((mutations) => {
+    const observer = new MutationObserver((mutations) => {
       for (const mut of mutations) {
         for (const node of mut.addedNodes) {
           if (node.nodeType !== Node.ELEMENT_NODE) continue;
@@ -33,14 +35,64 @@
           }
         }
       }
-    }).observe(document.body, { childList: true, subtree: true });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    browser.storage.sync.get(["mode", "clicks"]).then(({ mode, clicks }) => {
+      currentMode = mode || "gate";
+      requiredClicks = clicks || 10;
+      modeLoaded = true;
+      document.querySelectorAll("article").forEach(processPost);
+    });
+
+    browser.storage.onChanged.addListener(onStorageChanged);
+  }
+
+  function onStorageChanged(changes) {
+    if (changes.mode) {
+      const wasHide = currentMode === "hide";
+      currentMode = changes.mode.newValue;
+      const nowHide = currentMode === "hide";
+
+      if (nowHide && !wasHide) {
+        document.querySelectorAll("article").forEach((article) => {
+          const st = postStates.get(article);
+          if (!st) return;
+          if (st.button) {
+            st.button.remove();
+            st.button = null;
+          }
+          hideText(st.textEls);
+        });
+      } else if (!nowHide && wasHide) {
+        document.querySelectorAll("article").forEach((article) => {
+          const st = postStates.get(article);
+          if (!st) return;
+          if (!st.button) {
+            const button = createButton(article, st);
+            st.button = button;
+            st.clickCount = 0;
+            injectButton(st.textEls, button);
+          }
+        });
+      }
+    }
+
+    if (changes.clicks && currentMode === "gate") {
+      requiredClicks = changes.clicks.newValue;
+      document.querySelectorAll("article").forEach((article) => {
+        const st = postStates.get(article);
+        if (!st?.button) return;
+        st.button.textContent = `(${st.clickCount}/${requiredClicks}) Reveal text`;
+      });
+    }
   }
 
   function processPost(article) {
+    if (!modeLoaded) return;
     if (postStates.has(article)) return;
 
-    const isVideoPost = article.querySelector("video");
-    if (!isVideoPost) return;
+    if (!article.querySelector("video")) return;
 
     const textEls = [...article.querySelectorAll('[data-testid="tweetText"]')];
     if (textEls.length === 0) return;
@@ -49,9 +101,12 @@
     postStates.set(article, state);
 
     hideText(textEls);
-    const button = createButton(article, state);
-    state.button = button;
-    injectButton(textEls, button);
+
+    if (currentMode === "gate") {
+      const button = createButton(article, state);
+      state.button = button;
+      injectButton(textEls, button);
+    }
   }
 
   function hideText(els) {
@@ -81,7 +136,7 @@
 
   function createButton(article, state) {
     const btn = document.createElement("button");
-    btn.textContent = "(0/10) Reveal text";
+    btn.textContent = `(0/${requiredClicks}) Reveal text`;
     btn.type = "button";
     Object.assign(btn.style, {
       display: "block",
@@ -114,7 +169,7 @@
     activePost = article;
     state.clickCount++;
 
-    if (state.clickCount >= 10) {
+    if (state.clickCount >= requiredClicks) {
       revealText(state.textEls);
       btn.style.display = "none";
       revealedPost = article;
@@ -122,7 +177,7 @@
       return;
     }
 
-    btn.textContent = `(${state.clickCount}/10) Reveal text`;
+    btn.textContent = `(${state.clickCount}/${requiredClicks}) Reveal text`;
     btn.style.transform = "scale(0.96)";
     setTimeout(() => (btn.style.transform = "scale(1)"), 100);
   }
@@ -134,7 +189,7 @@
     st.clickCount = 0;
     hideText(st.textEls);
 
-    if (st.button) st.button.textContent = "(0/10) Reveal text";
+    if (st.button) st.button.textContent = `(0/${requiredClicks}) Reveal text`;
   }
 
   function regatePost(article) {
@@ -146,7 +201,7 @@
 
     if (st.button) {
       st.button.style.display = "block";
-      st.button.textContent = "(0/10) Reveal text";
+      st.button.textContent = `(0/${requiredClicks}) Reveal text`;
     }
 
     revealedPost = null;

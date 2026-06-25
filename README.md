@@ -1,14 +1,23 @@
 # Begone Captions
 
-A raw Firefox extension (Manifest V3) that hides post text on X/Twitter video posts behind a 10-click gate.
+A raw Firefox extension (Manifest V3) that hides post text on X/Twitter video posts behind a multi-click gate.
 
 ## How it works
 
 - Visits `x.com` or `twitter.com` → detects posts with video content
-- Hides the post text (opacity/height/overflow) and inserts a blue `(0/10) Reveal text` button
-- Each click increments the counter — on the 10th click, the text is revealed
+- Hides the post text (opacity/height/overflow) and inserts a blue `(0/N) Reveal text` button
+- Each click increments the counter — on the Nth click, the text is revealed
 - Only one post can be revealed at a time — revealing another resets the first
 - No persistence — refreshing or leaving the page resets everything
+
+## Settings
+
+Click the extension toolbar icon to open the popup:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| **Clicks** | `10` | Number of clicks required to reveal text (min 10) |
+| **Hide completely** | off | When on, text stays hidden with no reveal button |
 
 ## Install (temporary)
 
@@ -21,7 +30,8 @@ A raw Firefox extension (Manifest V3) that hides post text on X/Twitter video po
 | File | Purpose |
 |------|---------|
 | `manifest.json` | Firefox MV3 manifest, content script on `x.com` + `twitter.com` |
-| `content.js` | MutationObserver + 10-click gate logic, no dependencies |
+| `content.js` | MutationObserver + click gate logic, no dependencies |
+| `popup.html` / `popup.js` | Settings popup (click count + hide mode) |
 | `icon.svg` | Browser action icon |
 | `AGENTS.md` | Instructions for AI coding agents |
 | `CONTEXT.md` | Domain glossary |
